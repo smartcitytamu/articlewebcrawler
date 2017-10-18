@@ -53,7 +53,7 @@ class ArticleSpider(scrapy.Spider):
 
         # SENDS TO MONGODB SERVER
         mongo_collection.insert_one({
-            'title': response.css('title').extract_first(),
+            'title': response.css('title::text').extract_first(),
             'link': response.url
         })
 
