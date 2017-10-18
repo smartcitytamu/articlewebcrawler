@@ -1,22 +1,18 @@
 import scrapy
 from scrapy.crawler import CrawlerProcess
+import pymongo
 
-class KeywordsArticleSpider(scrapy.Spider):
+
+def connect_mongo():
+    url = "mongodb://127.0.0.1:27017"
+    client = pymongo.MongoClient(url)
+    db = client['aggieChallenge']
+    collection = db['articles']
+    return collection
+
+
+class ArticleSpider(scrapy.Spider):
     name = "articles"
-    keywords = [
-        'Hurricane',
-        'hurricane',
-        'Disaster',
-        'disaster',
-        'Electricity',
-        'electricity',
-        'Flooding',
-        'flooding',
-        'Power',
-        'power',
-        'Relief',
-        'relief'
-    ]
     start_urls = [
         'https://weather.com/',
         'https://www.wunderground.com/',
@@ -47,19 +43,20 @@ class KeywordsArticleSpider(scrapy.Spider):
     ]
 
     def parse(self, response):
-        # determine if response has keywords TODO improve this portion - may be being thrown out of this part of application
-        keyword_exists = False
-        for word in KeywordsArticleSpider.keywords:
-            if word in response.text:
-                keyword_exists = True
-                break
-
         # in json return title and link TODO get publication date
-        if keyword_exists:
-            yield {
-                'title': response.css('title').extract_first(),
-                'link': response.url
-            }
+
+        # SENDS TO FEED URI FILE
+        # yield {
+        #     'title': response.css('title').extract_first(),
+        #     'link': response.url
+        # }
+
+        # SENDS TO MONGODB SERVER
+        mongo_collection.insert_one({
+            'title': response.css('title').extract_first(),
+            'link': response.url
+        })
+
         # get links to crawl
         for a in response.css('a'):
             yield response.follow(a, callback=self.parse)
@@ -67,7 +64,11 @@ class KeywordsArticleSpider(scrapy.Spider):
 process = CrawlerProcess({
     'USER_AGENT': 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)',
     'JOBDIR': 'crawls/article_spider'
+    # 'FEED_FORMAT': 'jsonlines',
+    # 'FEED_URI': 'pages.json'
 })
 
-process.crawl(KeywordsArticleSpider)
+global mongo_collection
+mongo_collection = connect_mongo()
+process.crawl(ArticleSpider)
 process.start() # the script will block here until the crawling is finished
